@@ -1,18 +1,29 @@
+import numpy as np
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from networks import AlexNet
 from utils import load_CIFAR10
 
-torch.set_num_threads(8)
-torch.manual_seed(42)
+def set_seed(seed=42):
+    """Sets the seed for reproducibility for PyTorch and NumPy."""
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
+set_seed(42)
+
 # Total number of images used for training/validation
-N = 1000
+N = 0 # Full dataset
 num_classes = 10
 input_shape = (3, 64, 64)
-num_epochs = 5
-batch_size = 128
-learning_rate = 0.001
+num_epochs = 50
+batch_size = 256
+learning_rate = 0.0001
 
 #### TRAINING ####
 if __name__ == "__main__":
@@ -20,7 +31,8 @@ if __name__ == "__main__":
     print("Loading CIFAR-10 Data")
     
     train, validation, test = load_CIFAR10(N, input_shape)
-    print(f"Loaded {N} images for training and validation")
+
+    print(f"Loaded {len(train)} images for training and {len(validation)} images for validation")
     print("="*50)
 
 
@@ -69,7 +81,7 @@ if __name__ == "__main__":
             train_correct += (predicted == labels).sum().item()
             
             if (batch_idx + 1) % 100 == 0:
-                print(f"Epoch [{epoch+1}/{num_epochs}], Step [{batch_idx+1}/{len(train_loader)}], Loss: {loss.item():.4f}")
+                print(f"Epoch [{epoch+1}/{num_epochs}], Batch [{batch_idx+1}/{len(train_loader)}], Loss: {loss.item():.4f}")
         
         train_accuracy = 100 * train_correct / train_total
         train_loss /= len(train_loader)
