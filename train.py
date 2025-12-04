@@ -38,7 +38,8 @@ if __name__ == "__main__":
     print("\n" + "="*50 + "\nTraining on CIFAR-10:\n" + "="*50)
 
     # model = AlexNet(input_shape=input_shape, num_classes=num_classes)
-    model = VGG16(input_shape=input_shape, num_classes=num_classes)
+    # model = VGG16(input_shape=input_shape, num_classes=num_classes)
+    model = VGG19(input_shape=input_shape, num_classes=num_classes)
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
