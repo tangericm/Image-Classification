@@ -2,8 +2,9 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
-from networks import AlexNet
-from utils import load_CIFAR10
+from networks import *
+from utils import *
+
 
 def set_seed(seed=42):
     """Sets the seed for reproducibility for PyTorch and NumPy."""
@@ -15,32 +16,29 @@ def set_seed(seed=42):
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
-set_seed(42)
-
-# Total number of images used for training/validation
-N = 0 # Full dataset
-num_classes = 10
-input_shape = (3, 64, 64)
-num_epochs = 50
-batch_size = 256
-learning_rate = 0.0001
 
 #### TRAINING ####
 if __name__ == "__main__":
-    print("\n" + "="*50)
-    print("Loading CIFAR-10 Data")
+    set_seed(42)
+    
+    # Hyperparameters
+    N = 0 # Number of images used for training/validation (0 means all)
+    num_classes = 10
+    input_shape = (3, 64, 64)
+    num_epochs = 50
+    batch_size = 256
+    learning_rate = 0.0001
+
+    print("\n" + "="*50 + "\n" + "Loading CIFAR-10 Data")
     
     train, validation, test = load_CIFAR10(N, input_shape)
 
-    print(f"Loaded {len(train)} images for training and {len(validation)} images for validation")
-    print("="*50)
+    print(f"Loaded {len(train)} images for training and {len(validation)} images for validation\n" + "="*50)
 
+    print("\n" + "="*50 + "\nTraining on CIFAR-10:\n" + "="*50)
 
-    print("\n" + "="*50)
-    print("Training AlexNet on CIFAR-10:")
-    print("="*50)
-
-    model = AlexNet(input_shape=input_shape, num_classes=num_classes)
+    # model = AlexNet(input_shape=input_shape, num_classes=num_classes)
+    model = VGG16(input_shape=input_shape, num_classes=num_classes)
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
@@ -53,6 +51,22 @@ if __name__ == "__main__":
     model = model.to(device)
 
     print(f"Using device: {device}\n")
+
+    # Setup logging after model is created (so we can include model name in run)
+    run_name = model.__class__.__name__
+    logger, metrics_csv, ckpt_dir = setup_logging(run_name)
+    logger.info("Starting training run: %s", run_name)
+    # Log hyperparameters
+    hparams = {
+        "num_epochs": num_epochs,
+        "batch_size": batch_size,
+        "learning_rate": learning_rate,
+        "input_shape": input_shape,
+        "num_classes": num_classes,
+        "seed": 42,
+        "device": str(device),
+    }
+    logger.info("Hyperparameters: %s", hparams)
 
     # Training loop
     for epoch in range(num_epochs):
@@ -81,7 +95,7 @@ if __name__ == "__main__":
             train_correct += (predicted == labels).sum().item()
             
             if (batch_idx + 1) % 100 == 0:
-                print(f"Epoch [{epoch+1}/{num_epochs}], Batch [{batch_idx+1}/{len(train_loader)}], Loss: {loss.item():.4f}")
+                logger.info("Epoch [%d/%d], Batch [%d/%d], Loss: %.4f", epoch+1, num_epochs, batch_idx+1, len(train_loader), loss.item())
         
         train_accuracy = 100 * train_correct / train_total
         train_loss /= len(train_loader)
@@ -106,9 +120,14 @@ if __name__ == "__main__":
         val_accuracy = 100 * val_correct / val_total
         val_loss /= len(val_loader)
         
-        print(f"Epoch [{epoch+1}/{num_epochs}] - Train Loss: {train_loss:.4f}, Train Acc: {train_accuracy:.2f}% - Val Loss: {val_loss:.4f}, Val Acc: {val_accuracy:.2f}%\n")
+        logger.info("Epoch [%d/%d] - Train Loss: %.4f, Train Acc: %.2f%% - Val Loss: %.4f, Val Acc: %.2f%%", epoch+1, num_epochs, train_loss, train_accuracy, val_loss, val_accuracy)
+        # Append metrics to CSV
+        with open(metrics_csv, "a", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow([epoch+1, f"{train_loss:.6f}", f"{train_accuracy:.4f}", f"{val_loss:.6f}", f"{val_accuracy:.4f}"])
 
-    print("Training complete!")
-    # Save the model
-    torch.save(model.state_dict(), './models/alexnet_cifar10.pth')
-    print("Model saved as 'alexnet_cifar10.pth'")
+    logger.info("Training complete!")
+    # Save the final model checkpoint
+    final_ckpt = os.path.join(ckpt_dir, f"{model.__class__.__name__}_final.pth")
+    torch.save(model.state_dict(), final_ckpt)
+    logger.info("Model saved to %s", final_ckpt)
