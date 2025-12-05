@@ -56,12 +56,13 @@ class VGG19(nn.Module):
             nn.ReLU(inplace=True),
             nn.MaxPool2d(kernel_size=2, stride=2), # 2 x 2 x 512
 
-            # Adaptive Average Pooling 
-            nn.AdaptiveAvgPool2d((7,7)) # 7 x 7 x 512 to match original architecture
+            # Adaptive Average Pooling can be used to match the output size to the original AlexNet network
+            # Note: AdaptiveAvgPool2d is non-deterministic on CUDA  
+            # nn.AdaptiveAvgPool2d((7,7)) # 7 x 7 x 512 to match original architecture
         )
         # Fully connected layers
         self.classifier = nn.Sequential(
-            nn.Linear(512*7*7, 4096), # 1 x 4096
+            nn.Linear(2 * 2 * 512, 4096), # 1 x 4096
             nn.ReLU(inplace=True),
             nn.Linear(4096, 4096), # 1 x 4096
             nn.ReLU(inplace=True),

@@ -32,14 +32,15 @@ class AlexNet(nn.Module):
             nn.ReLU(inplace=True),
             nn.MaxPool2d(kernel_size=3, stride=2), # 1 x 1 x 256
 
-            # Adaptive Average Pooling 
-            nn.AdaptiveAvgPool2d((6,6)) # 6 x 6 x 256
+            # Adaptive Average Pooling can be used to match the output size to the original AlexNet network
+            # Note: AdaptiveAvgPool2d is non-deterministic on CUDA  
+            # nn.AdaptiveAvgPool2d((6,6)) # 6 x 6 x 256
         )
         # Fully connected layers
         self.classifier = nn.Sequential(
-            # Flatten -> 6 x 6 x 256 = 9216
-            nn.Dropout(p=0.5), # 9216
-            nn.Linear(256 * 6 * 6, 4096), 
+            # Flatten -> 1 x 1 x 256 = 256
+            nn.Dropout(p=0.5),
+            nn.Linear(256 * 1 * 1, 4096), 
             nn.ReLU(inplace=True), # 4096
 
             nn.Dropout(p=0.5),
