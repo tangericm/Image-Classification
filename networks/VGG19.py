@@ -69,16 +69,16 @@ class VGG19(nn.Module):
             nn.Linear(4096, num_classes), # 1 x num_classes
         )
 
-        # Initialize weights
+        # Initialize weights (deeper networks can result in gradient vanishing and collapse)
         for m in self.modules():
-            # Convolutional layers: normal distribution with mean=0, std=0.05; biases=0
+            # Convolutional layers: normal distribution with mean=0, std=0.02; biases=0
             if isinstance(m, nn.Conv2d):
-                m.weight.detach().normal_(0, 0.05)
+                m.weight.detach().normal_(0, 0.02)
                 if m.bias is not None:
                     m.bias.detach().zero_()
-            # Fully connected layers: normal distribution with mean=0, std=0.05; biases=0
+            # Fully connected layers: normal distribution with mean=0, std=0.02; biases=0
             elif isinstance(m, nn.Linear):
-                    m.weight.detach().normal_(0, 0.05)
+                    m.weight.detach().normal_(0, 0.02)
                     m.bias.detach().zero_()
     
     def forward(self, x):
