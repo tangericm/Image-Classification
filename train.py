@@ -1,134 +1,237 @@
+import csv
+import os
+from dataclasses import dataclass
+from typing import Dict, List, Tuple, Callable, Optional
+
 import numpy as np
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
-from networks import *
-from utils import *
+
+from networks import AlexNet, VGG16, VGG19
+from utils import load_CIFAR10, setup_logging, set_seed
+
+@dataclass
+class TrainConfig:
+    model_name: str                  # "AlexNet", "VGG16", "VGG19"
+    input_shape: Tuple[int, int, int]  # (C, H, W), e.g. (3, 64, 64)
+    num_classes: int = 10
+    N: int = 0                       # 0 = use full CIFAR-10
+    num_epochs: int = 20
+    batch_size: int = 128
+    learning_rate: float = 1e-4
+    seed: int = 42
+    device: str = "cuda" if torch.cuda.is_available() else "cpu"
 
 
-def set_seed(seed=42):
-    """Sets the seed for reproducibility for PyTorch and NumPy."""
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed(seed)
-        torch.cuda.manual_seed_all(seed)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
+@dataclass
+class TrainHistory:
+    train_loss: List[float]
+    train_acc: List[float]
+    val_loss: List[float]
+    val_acc: List[float]
+    test_acc: float
+    run_name: str = ""
+    metrics_file: str = ""
+    ckpt_dir: str = ""
 
 
-#### TRAINING ####
-if __name__ == "__main__":
-    set_seed(42)
-    
-    # Hyperparameters
-    N = 0 # Number of images used for training/validation (0 means all)
-    num_classes = 10
-    input_shape = (3, 64, 64)
-    num_epochs = 50
-    batch_size = 256
-    learning_rate = 0.0001
+MODEL_REGISTRY = {
+    "AlexNet": AlexNet,
+    "VGG16": VGG16,
+    "VGG19": VGG19,
+}
 
-    print("\n" + "="*50 + "\n" + "Loading CIFAR-10 Data")
-    
-    train, validation, test = load_CIFAR10(N, input_shape)
 
-    print(f"Loaded {len(train)} images for training and {len(validation)} images for validation\n" + "="*50)
+def build_model(config: TrainConfig) -> nn.Module:
+    if config.model_name not in MODEL_REGISTRY:
+        raise ValueError(f"Unknown model_name: {config.model_name}")
+    model_cls = MODEL_REGISTRY[config.model_name]
+    model = model_cls(input_shape=config.input_shape,
+                      num_classes=config.num_classes)
+    return model
 
-    print("\n" + "="*50 + "\nTraining on CIFAR-10:\n" + "="*50)
 
-    # model = AlexNet(input_shape=input_shape, num_classes=num_classes)
-    # model = VGG16(input_shape=input_shape, num_classes=num_classes)
-    model = VGG19(input_shape=input_shape, num_classes=num_classes)
-    criterion = nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+def train_model(
+    config: TrainConfig,
+    epoch_callback: Optional[Callable[[int, TrainHistory], None]] = None,
+) -> TrainHistory:
+    """
+    Train a model on CIFAR-10 with the given configuration.
 
-    # Create data loaders
-    train_loader = DataLoader(train, batch_size=batch_size, shuffle=True)
-    val_loader = DataLoader(validation, batch_size=batch_size, shuffle=False)
+    Args:
+        config: Training configuration.
+        epoch_callback: Optional function called after each epoch:
+            epoch_callback(epoch_idx, history_so_far)
 
-    # Training parameters
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model = model.to(device)
+    Returns:
+        TrainHistory with per-epoch train/val metrics and final test accuracy.
+    """
+    set_seed(config.seed)
 
-    print(f"Using device: {device}\n")
-
-    # Setup logging after model is created (so we can include model name in run)
-    run_name = model.__class__.__name__
-    logger, metrics_csv, ckpt_dir = setup_logging(run_name)
-    logger.info("Starting training run: %s", run_name)
+    # Create a human-readable run name (base) for logging
+    logger, metrics_file, ckpt_dir = setup_logging(config.model_name)
+    logger.info("Starting training run: %s", logger.name)
     # Log hyperparameters
     hparams = {
-        "num_epochs": num_epochs,
-        "batch_size": batch_size,
-        "learning_rate": learning_rate,
-        "input_shape": input_shape,
-        "num_classes": num_classes,
-        "seed": 42,
-        "device": str(device),
+        "model_name": config.model_name,
+        "input_shape": config.input_shape,
+        "num_classes": config.num_classes,
+        "N": config.N,
+        "num_epochs": config.num_epochs,
+        "batch_size": config.batch_size,
+        "learning_rate": config.learning_rate,
+        "seed": config.seed,
+        "device": str(config.device),
     }
     logger.info("Hyperparameters: %s", hparams)
 
-    # Training loop
-    for epoch in range(num_epochs):
-        # Training phase
+
+    device = torch.device(config.device)
+    model = build_model(config).to(device)
+
+    # Load data
+    train_ds, val_ds, test_ds = load_CIFAR10(config.N, config.input_shape,seed=config.seed)
+
+    train_loader = DataLoader(train_ds,
+                              batch_size=config.batch_size,
+                              shuffle=True)
+    val_loader = DataLoader(val_ds,
+                            batch_size=config.batch_size,
+                            shuffle=False)
+    test_loader = DataLoader(test_ds,
+                             batch_size=config.batch_size,
+                             shuffle=False)
+
+    criterion = nn.CrossEntropyLoss()
+    optimizer = torch.optim.Adam(model.parameters(),
+                                 lr=config.learning_rate)
+
+    history = TrainHistory(
+        train_loss=[],
+        train_acc=[],
+        val_loss=[],
+        val_acc=[],
+        test_acc=0.0,
+        run_name=logger.name,         
+        metrics_file=metrics_file,
+        ckpt_dir=ckpt_dir,
+    )
+
+    best_val_acc = -1.0
+    best_ckpt_path = os.path.join(ckpt_dir, "best.pth")
+
+    for epoch in range(config.num_epochs):
+        # ---- Training ----
         model.train()
-        train_loss = 0.0
-        train_correct = 0
-        train_total = 0
-        
-        for batch_idx, (images, labels) in enumerate(train_loader):
-            images, labels = images.to(device), labels.to(device)
-            
-            # Forward pass
+        running_loss = 0.0
+        correct = 0
+        total = 0
+
+        for images, labels in train_loader:
+            images = images.to(device)
+            labels = labels.to(device)
+
             outputs = model(images)
             loss = criterion(outputs, labels)
-            
-            # Backward pass and optimization
+
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-            
-            # Statistics
-            train_loss += loss.item()
-            _, predicted = torch.max(outputs.data, 1)
-            train_total += labels.size(0)
-            train_correct += (predicted == labels).sum().item()
-            
-            if (batch_idx + 1) % 100 == 0:
-                logger.info("Epoch [%d/%d], Batch [%d/%d], Loss: %.4f", epoch+1, num_epochs, batch_idx+1, len(train_loader), loss.item())
-        
-        train_accuracy = 100 * train_correct / train_total
-        train_loss /= len(train_loader)
-        
-        # Validation phase
+
+            running_loss += loss.item()
+            _, predicted = torch.max(outputs, dim=1)
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+
+        epoch_train_loss = running_loss / len(train_loader)
+        epoch_train_acc = 100.0 * correct / total
+
+        # ---- Validation ----
         model.eval()
-        val_loss = 0.0
+        val_running_loss = 0.0
         val_correct = 0
         val_total = 0
-        
+
         with torch.no_grad():
             for images, labels in val_loader:
-                images, labels = images.to(device), labels.to(device)
+                images = images.to(device)
+                labels = labels.to(device)
+
                 outputs = model(images)
                 loss = criterion(outputs, labels)
-                
-                val_loss += loss.item()
-                _, predicted = torch.max(outputs.data, 1)
+
+                val_running_loss += loss.item()
+                _, predicted = torch.max(outputs, dim=1)
                 val_total += labels.size(0)
                 val_correct += (predicted == labels).sum().item()
-        
-        val_accuracy = 100 * val_correct / val_total
-        val_loss /= len(val_loader)
-        
-        logger.info("Epoch [%d/%d] - Train Loss: %.4f, Train Acc: %.2f%% - Val Loss: %.4f, Val Acc: %.2f%%", epoch+1, num_epochs, train_loss, train_accuracy, val_loss, val_accuracy)
-        # Append metrics to CSV
-        with open(metrics_csv, "a", newline="", encoding="utf-8") as f:
-            writer = csv.writer(f)
-            writer.writerow([epoch+1, f"{train_loss:.6f}", f"{train_accuracy:.4f}", f"{val_loss:.6f}", f"{val_accuracy:.4f}"])
 
-    logger.info("Training complete!")
-    # Save the final model checkpoint
-    final_ckpt = os.path.join(ckpt_dir, f"{model.__class__.__name__}_final.pth")
-    torch.save(model.state_dict(), final_ckpt)
-    logger.info("Model saved to %s", final_ckpt)
+        epoch_val_loss = val_running_loss / len(val_loader)
+        epoch_val_acc = 100.0 * val_correct / val_total
+
+        history.train_loss.append(epoch_train_loss)
+        history.train_acc.append(epoch_train_acc)
+        history.val_loss.append(epoch_val_loss)
+        history.val_acc.append(epoch_val_acc)
+
+        # ---- Logging ----
+        logger.info(
+            "Epoch [%d/%d] - Train Loss: %.4f, Train Acc: %.2f%% - "
+            "Val Loss: %.4f, Val Acc: %.2f%%",
+            epoch + 1,
+            config.num_epochs,
+            epoch_train_loss,
+            epoch_train_acc,
+            epoch_val_loss,
+            epoch_val_acc,
+        )
+        
+        # Append to metrics CSV
+        with open(history.metrics_file, "a", newline="", encoding="utf-8") as f:
+            import csv
+            writer = csv.writer(f)
+            writer.writerow([
+                epoch + 1,
+                f"{epoch_train_loss:.6f}",
+                f"{epoch_train_acc:.4f}",
+                f"{epoch_val_loss:.6f}",
+                f"{epoch_val_acc:.4f}",
+            ])
+        
+        # ---- Save best checkpoint ----
+        if epoch_val_acc > best_val_acc:
+            best_val_acc = epoch_val_acc
+            torch.save(model.state_dict(), best_ckpt_path)
+            logger.info(
+                "New best model at epoch %d with Val Acc: %.2f%% -> %s",
+                epoch + 1, best_val_acc, best_ckpt_path
+            )
+
+        # Stream updates to GUI via callback
+        if epoch_callback is not None:
+            epoch_callback(epoch, history)
+
+    final_ckpt_path = os.path.join(ckpt_dir, "final.pth")
+    torch.save(model.state_dict(), final_ckpt_path)
+    logger.info("Saved final model checkpoint to %s", final_ckpt_path)
+
+    # ---- Test evaluation ----
+    model.eval()
+    test_correct = 0
+    test_total = 0
+
+    with torch.no_grad():
+        for images, labels in test_loader:
+            images = images.to(device)
+            labels = labels.to(device)
+            outputs = model(images)
+            _, predicted = torch.max(outputs, dim=1)
+            test_total += labels.size(0)
+            test_correct += (predicted == labels).sum().item()
+
+    history.test_acc = 100.0 * test_correct / test_total
+    logger.info("Test Accuracy: %.2f%%", history.test_acc)
+
+
+
+    return history
