@@ -9,15 +9,16 @@ from datetime import datetime
 def load_CIFAR10(N, input_shape):
     # Define transformations
     C, H, W = input_shape
-    transform = transforms.Compose([transforms.Resize((H+20, W+20)),
+    transform = transforms.Compose([transforms.Resize((H+10, W+10)),
                                     transforms.RandomCrop((H, W)),
                                     transforms.ToTensor()])
 
     # Load the training dataset
-    subset_size = N 
     full_train = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
-    if subset_size > 0:
-        full_train, _ = random_split(full_train, [subset_size, len(full_train) - subset_size])
+    if N < 2:
+        raise Exception("N must be at least 2 to create training and validation splits.")
+    else:
+        full_train, _ = random_split(full_train, [N, len(full_train) - N])
 
     # Load the test dataset
     test = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform)
