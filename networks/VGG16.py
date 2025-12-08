@@ -50,7 +50,7 @@ class VGG16(nn.Module):
             nn.ReLU(inplace=True),
             nn.MaxPool2d(kernel_size=2, stride=2), # 2 x 2 x 512
 
-            # Adaptive Average Pooling can be used to match the output size to the original AlexNet network
+            # Adaptive Average Pooling can be used to match the output size to the original VGG16 network
             # Note: AdaptiveAvgPool2d is non-deterministic on CUDA  
             # nn.AdaptiveAvgPool2d((7,7)) # 7 x 7 x 512 to match original architecture
         )
