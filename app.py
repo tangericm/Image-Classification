@@ -1,9 +1,6 @@
 import time
 import streamlit as st
 import matplotlib.pyplot as plt
-import os
-os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
-from utils import set_seed
 from train import TrainConfig, train_model, MODEL_REGISTRY
 
 def format_time(seconds: float) -> str:
