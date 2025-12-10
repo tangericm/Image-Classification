@@ -62,8 +62,10 @@ class VGG16(nn.Module):
         )
         # Fully connected layers
         self.classifier = nn.Sequential(
+            nn.Dropout(p=0.5),
             nn.Linear(2 * 2 * 512, 4096), # B x 4096
             nn.ReLU(inplace=True),
+            nn.Dropout(p=0.5),
             nn.Linear(4096, 4096), # B x 4096
             nn.ReLU(inplace=True),
             nn.Linear(4096, num_classes), # B x num_classes
