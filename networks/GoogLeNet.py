@@ -101,7 +101,6 @@ class GoogLeNet(nn.Module):
     def _init_weights(self):
         """
         He (Kaiming) initialization for conv layers, small normal for linear.
-        This is robust for deep ReLU networks like GoogLeNet/VGG.
         """
         for m in self.modules():
             if isinstance(m, nn.Conv2d):

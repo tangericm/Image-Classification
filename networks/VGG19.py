@@ -1,98 +1,96 @@
 import torch
 import torch.nn as nn
 
-# Visual Geometry Group (VGG) based on https://arxiv.org/abs/1409.1556
-# Modified for smaller input images size (32 x 32)
 class VGG19(nn.Module):
+    """
+    Visual Geometry Group (VGG) 19-layer network adapted for smaller CIFAR-10 images (resized to 64x64).
+    Based on https://arxiv.org/abs/1409.1556
+
+    Input:
+        input_shape: (C, H, W), e.g. (3, 64, 64)
+        num_classes: number of output classes, e.g. 10 for CIFAR-10
+    """
     def __init__(self, input_shape, num_classes):
         super().__init__()
-        # Input -> Resized image from 32 x 32 x 3 to 64 x 64 x 3
         C, H, W = input_shape
         self.features = nn.Sequential(
             # Block 1
-            nn.Conv2d(C, 64, kernel_size=3, stride=1, padding=1), # 64 x 64 x 64
+            nn.Conv2d(C, 64, kernel_size=3, stride=1, padding=1), # B x 64 x 64 x 64
             nn.ReLU(inplace=True),
-            nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1), # 64 x 64 x 64
+            nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1), # B x 64 x 64 x 64
             nn.ReLU(inplace=True),
-            nn.MaxPool2d(kernel_size=2, stride=2), # 32 x 32 x 64
+            nn.MaxPool2d(kernel_size=2, stride=2), # B x 64 x 32 x 32
 
             # Block 2
-            nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1), # 32 x 32 x 128
+            nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1), # B x 128 x 32 x 32
             nn.ReLU(inplace=True),
-            nn.Conv2d(128, 128, kernel_size=3, stride=1, padding=1), # 32 x 32 x 128
+            nn.Conv2d(128, 128, kernel_size=3, stride=1, padding=1), # B x 128 x 32 x 32
             nn.ReLU(inplace=True),
-            nn.MaxPool2d(kernel_size=2, stride=2), # 16 x 16 x 128
+            nn.MaxPool2d(kernel_size=2, stride=2), # B x 128 x 16 x 16
 
             # Block 3
-            nn.Conv2d(128, 256, kernel_size=3, stride=1, padding=1), # 16 x 16 x 256
+            nn.Conv2d(128, 256, kernel_size=3, stride=1, padding=1), # B x 256 x 16 x 16
             nn.ReLU(inplace=True),
-            nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1), # 16 x 16 x 256
+            nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1), # B x 256 x 16 x 16
             nn.ReLU(inplace=True),
-            nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1), # 16 x 16 x 256
+            nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1), # B x 256 x 16 x 16
             nn.ReLU(inplace=True),
-            nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1), # 16 x 16 x 256
+            nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1), # B x 256 x 16 x 16
             nn.ReLU(inplace=True),
-            nn.MaxPool2d(kernel_size=2, stride=2), # 8 x 8 x 256
+            nn.MaxPool2d(kernel_size=2, stride=2), # B x 256 x 8 x 8
 
             # Block 4
-            nn.Conv2d(256, 512, kernel_size=3, stride=1, padding=1), # 8 x 8 x 512
+            nn.Conv2d(256, 512, kernel_size=3, stride=1, padding=1), # B x 512 x 8 x 8
             nn.ReLU(inplace=True),
-            nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=1), # 8 x 8 x 512
+            nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=1), # B x 512 x 8 x 8
             nn.ReLU(inplace=True),
-            nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=1), # 8 x 8 x 512
+            nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=1), # B x 512 x 8 x 8
             nn.ReLU(inplace=True),
-            nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=1), # 8 x 8 x 512
+            nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=1), # B x 512 x 8 x 8
             nn.ReLU(inplace=True),
-            nn.MaxPool2d(kernel_size=2, stride=2), # 4 x 4 x 512
+            nn.MaxPool2d(kernel_size=2, stride=2), # B x 512 x 4 x 4
 
             # Block 5
-            nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=1), # 4 x 4 x 512
+            nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=1), # B x 512 x 4 x 4
             nn.ReLU(inplace=True),
-            nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=1), # 4 x 4 x 512
+            nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=1), # B x 512 x 4 x 4
             nn.ReLU(inplace=True),
-            nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=1), # 4 x 4 x 512
+            nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=1), # B x 512 x 4 x 4
             nn.ReLU(inplace=True),
-            nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=1), # 4 x 4 x 512
+            nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=1), # B x 512 x 4 x 4
             nn.ReLU(inplace=True),
-            nn.MaxPool2d(kernel_size=2, stride=2), # 2 x 2 x 512
+            nn.MaxPool2d(kernel_size=2, stride=2), # B x 512 x 2 x 2
 
             # Adaptive Average Pooling can be used to match the output size to the original VGG19 network
             # Note: AdaptiveAvgPool2d is non-deterministic on CUDA  
-            # nn.AdaptiveAvgPool2d((7,7)) # 7 x 7 x 512 to match original architecture
+            # nn.AdaptiveAvgPool2d((7,7)) # B x 512 x 7 x 7 to match original architecture
         )
         # Fully connected layers
         self.classifier = nn.Sequential(
-            nn.Linear(2 * 2 * 512, 4096), # 1 x 4096
+            nn.Linear(2 * 2 * 512, 4096), # B x 4096
             nn.ReLU(inplace=True),
-            nn.Linear(4096, 4096), # 1 x 4096
+            nn.Linear(4096, 4096), # B x 4096
             nn.ReLU(inplace=True),
-            nn.Linear(4096, num_classes), # 1 x num_classes
+            nn.Linear(4096, num_classes), # B x num_classes
         )
 
-        # Initialize weights (deeper networks can result in gradient vanishing and collapse)
+        self._init_weights()
+
+    def _init_weights(self):
+        """
+        He (Kaiming) initialization for conv layers, small normal for linear.
+        """
         for m in self.modules():
-            # Convolutional layers: normal distribution with mean=0, std=0.02; biases=0
             if isinstance(m, nn.Conv2d):
-                m.weight.detach().normal_(0, 0.02)
+                nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
                 if m.bias is not None:
-                    m.bias.detach().zero_()
-            # Fully connected layers: normal distribution with mean=0, std=0.02; biases=0
+                    nn.init.constant_(m.bias, 0.0)
             elif isinstance(m, nn.Linear):
-                    m.weight.detach().normal_(0, 0.02)
-                    m.bias.detach().zero_()
-    
+                nn.init.normal_(m.weight, mean=0.0, std=0.01)
+                nn.init.constant_(m.bias, 0.0)
+
     def forward(self, x):
-        # print(f"Input shape: {x.shape}")
-        # for i, layer in enumerate(self.features):
-        #     x = layer(x)
-        #     print(f"After layer {i} ({layer.__class__.__name__}): {x.shape}")
         x = self.features(x)
         x = torch.flatten(x, 1)
-
-        # print(f"Input shape: {x.shape}")
-        # for i, layer in enumerate(self.classifier):
-        #     x = layer(x)
-        #     print(f"After layer {i} ({layer.__class__.__name__}): {x.shape}")
-
         x = self.classifier(x)
         return x
