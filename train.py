@@ -92,21 +92,15 @@ def train_model(
     model = build_model(config).to(device)
 
     # Load data
-    train_ds, val_ds, test_ds = load_CIFAR10(config.N, config.input_shape,seed=config.seed)
+    train_ds, val_ds, test_ds = load_CIFAR10(config.N, config.input_shape, seed=config.seed)
 
-    train_loader = DataLoader(train_ds,
-                              batch_size=config.batch_size,
-                              shuffle=True)
-    val_loader = DataLoader(val_ds,
-                            batch_size=config.batch_size,
-                            shuffle=False)
-    test_loader = DataLoader(test_ds,
-                             batch_size=config.batch_size,
-                             shuffle=False)
+    train_loader = DataLoader(train_ds, batch_size=config.batch_size, shuffle=True)
+    val_loader = DataLoader(val_ds, batch_size=config.batch_size, shuffle=False)
+    test_loader = DataLoader(test_ds, batch_size=config.batch_size, shuffle=False)
 
     criterion = nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(model.parameters(),
-                                 lr=config.learning_rate)
+    optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate, weight_decay=1e-4)
+    lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=5)
 
     history = TrainHistory(
         train_loss=[],
