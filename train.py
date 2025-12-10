@@ -8,7 +8,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 
-from networks import AlexNet, VGG16, VGG19
+from networks import *
 from utils import load_CIFAR10, setup_logging, set_seed
 
 @dataclass
@@ -40,6 +40,7 @@ MODEL_REGISTRY = {
     "AlexNet": AlexNet,
     "VGG16": VGG16,
     "VGG19": VGG19,
+    "GoogLeNet": GoogLeNet,
 }
 
 
