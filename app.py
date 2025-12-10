@@ -1,6 +1,7 @@
 import time
 import streamlit as st
 import matplotlib.pyplot as plt
+import os
 from train import TrainConfig, train_model, MODEL_REGISTRY
 
 def format_time(seconds: float) -> str:
@@ -132,6 +133,27 @@ def main():
             ax_acc.legend()
             ax_acc.grid(True)
             acc_plot_placeholder.pyplot(fig_acc)
+
+            # If this is the final epoch, save the final plots to the checkpoint dir
+            try:
+                if completed == config.num_epochs:
+                    ckpt_dir = getattr(history, "ckpt_dir", None)
+                    if ckpt_dir:
+                        os.makedirs(ckpt_dir, exist_ok=True)
+
+                        # Save loss figure
+                        loss_png = os.path.join(ckpt_dir, "loss.png")
+                        fig_loss.savefig(loss_png)
+
+                        # Save accuracy figure
+                        acc_png = os.path.join(ckpt_dir, "accuracy.png")
+                        fig_acc.savefig(acc_png)
+            except Exception as e:
+                try:
+                    st.warning(f"Failed to save final plots: {e}")
+                except Exception:
+                    pass
+
             plt.close(fig_acc)
 
         # Run training with streaming updates
