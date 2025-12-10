@@ -164,6 +164,8 @@ def train_model(
         epoch_val_loss = val_running_loss / len(val_loader)
         epoch_val_acc = 100.0 * val_correct / val_total
 
+        lr_scheduler.step(epoch_val_loss) # Adjust LR based on val loss
+
         history.train_loss.append(epoch_train_loss)
         history.train_acc.append(epoch_train_acc)
         history.val_loss.append(epoch_val_loss)
