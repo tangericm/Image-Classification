@@ -21,7 +21,11 @@ def set_seed(seed: int = 42) -> None:
 def load_CIFAR10(N, input_shape, seed: int = 42):
     # Define transformations
     C, H, W = input_shape
-    transform = transforms.Compose([transforms.Resize((H, W)),
+    transform_train = transforms.Compose([transforms.Resize((H, W)),
+                                    transforms.RandomCrop(64, padding=4),
+                                    transforms.RandomHorizontalFlip(),
+                                    transforms.ToTensor()])
+    transform_test = transforms.Compose([transforms.Resize((H, W)),
                                     transforms.ToTensor()])
 
     # Generator for deterministic behavior
@@ -30,14 +34,14 @@ def load_CIFAR10(N, input_shape, seed: int = 42):
         g.manual_seed(seed)
 
     # Load the training dataset
-    full_train = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
+    full_train = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform_train)
     if N < 2:
         raise Exception("N must be at least 2 to create training and validation splits.")
     else:
         full_train, _ = random_split(full_train, [N, len(full_train) - N], generator=g)
 
     # Load the test dataset
-    test = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform)
+    test = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform_test)
 
     # Split into training (80%) and validation (20%)
     train_size = int(0.8*len(full_train))
