@@ -134,9 +134,9 @@ class GoogLeNet(nn.Module):
         x = self.inception5a(x)
         x = self.inception5b(x)
 
-        # Global average pooling and classifier
+        # Classifier
         x = torch.flatten(x, 1)         # (B, 4 * 4 * 1024)
         x = self.dropout(x)
         x = self.fc(x)                  # (B, num_classes)
-        
+
         return x
